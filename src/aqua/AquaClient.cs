@@ -32,7 +32,7 @@ namespace monday_integration.src.aqua {
             return response;
         }
 
-        public async Task<List<T>> FetchCSVData<T>()
+        public async Task<List<T>> FetchJsonData<T>()
         {
             await WaitForJobCompletion();
             var response = await api.GetAsync<AquaPublishLinkResponse<T>>(publishLink);
@@ -55,7 +55,7 @@ namespace monday_integration.src.aqua {
                     logger.Info($"JobId - {jobId}, status - {response.jobStatus} {response.jobStatusText}");
                 }
             }
-            throw new AquaException($"Job {jobId} didn't complete on time ({response.jobStatusText})");
+            throw new AquaException($"Job {jobId} didn't complete on time ({response?.jobStatusText})");
         }
     }
 }

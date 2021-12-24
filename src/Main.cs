@@ -5,6 +5,7 @@ using monday_integration.src.api;
 using monday_integration.src.aqua;
 using monday_integration.src.aqua.model;
 using monday_integration.src.logging;
+using monday_integration.src.monday;
 
 namespace monday_integration.src
 {
@@ -26,21 +27,32 @@ namespace monday_integration.src
         }
 
         private static async Task Execute() {
-            var aquaClient = new AquaClient(settings.AimsJobId);
-            await aquaClient.RerunBackgroundJob();
-            var response = await aquaClient.FetchCSVData<WitreStylePO>();
-            logger.Info(response);
+            //var aquaClient = new AquaClient(settings.AimsJobId);
+            //await aquaClient.RerunBackgroundJob();
+            //var response = await aquaClient.FetchJsonData<WitreStylePO>();
+            //logger.Info(response);
+
+            var api = MondayApiFactory.GetApi();
+            var boards = await api.GetMondayBoards();
+
+            //foreach(var board in listOfBoards) {
+            //    logger.Info(board);
+            //}
         }
+
+
 
         private static void Initialize(ILogger logger) {
             AimsLoggerFactory.logger = logger;
             settings = new MondayIntegrationSettings(Environment.GetEnvironmentVariables());
             AimsApiFactory.InitializeApi(settings.Aims360BaseURL, settings.AimsBearerToken);
+            MondayApiFactory.InitializeApi(settings.MondayBaseURL, settings.MondayApiKey);
             Main.logger = AimsLoggerFactory.CreateLogger(typeof(Main));
         }
 
         private static void Cleanup() {
             AimsApiFactory.CloseApi();
+            MondayApiFactory.CloseApi();
         }
     }
 }

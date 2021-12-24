@@ -6,6 +6,9 @@ namespace monday_integration.src
         public string AimsBearerToken {get; private set;}
         public string AimsJobId {get; private set;}
 
+        public string MondayBaseURL {get; private set;}
+        public string MondayApiKey {get; private set;}
+
         public MondayIntegrationSettings(System.Collections.IDictionary dictionary) {
             foreach(var property in typeof(MondayIntegrationSettings).GetProperties()) {
                 property.SetValue(this, dictionary[property.Name]);

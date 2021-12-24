@@ -4,7 +4,7 @@ namespace monday_integration.src.aqua.model
 {
     public class WitreStylePO
     {
-        public string PurchaseOrderNo {get; set;}
+        [MondayAttribute("string4")]public string PurchaseOrderNo {get; set;}
         public string Vendor {get; set;}
         public string Style {get; set;}
         public string StyleDescription {get; set;}
