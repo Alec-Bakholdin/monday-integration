@@ -8,8 +8,6 @@ using GraphQL;
 using GraphQL.Client.Http;
 using GraphQL.Client.Serializer.Newtonsoft;
 using monday_integration.src.monday.model;
-using Newtonsoft.Json;
-using RateLimiter;
 
 namespace monday_integration.src.monday
 {
@@ -25,10 +23,10 @@ namespace monday_integration.src.monday
             __lock = new SemaphoreSlim(1, 1);
         }
 
-        public async Task<List<MondayBoard>> GetMondayBoards(params string[] options) {
-            var query = @"{boards(){$query_options}}";
+        public async Task<List<MondayBoard>> GetMondayBoards(MondayBoardBodyOptions options) {
+            var query = @"{boards(){$body_options}}";
             var variables = new {
-                query_options = String.Join(", ", options)
+                body_options = options.GetBody()
             };
             
             var request = new GraphQLRequest() {Query = SubstituteVariables(query, variables)};

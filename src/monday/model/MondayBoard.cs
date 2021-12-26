@@ -2,9 +2,12 @@ using System.Collections.Generic;
 
 namespace monday_integration.src.monday.model
 {
-    public enum MondayBoardBodyOption {
-        id,
-        name
+    public class MondayBoardBodyOptions : MondayBodyOptions {
+        public bool id {get; set;} = false;
+        public bool name {get; set;} = false;
+        
+        public MondayItemBodyOptions items {get; set;} = null;
+        public MondayColumnBodyOptions columns {get; set;} = null;
     }
 
     public class MondayBoard
@@ -13,6 +16,7 @@ namespace monday_integration.src.monday.model
         public string name {get; set;}
 
         public List<MondayItem> items;
+        public List<MondayColumn> columns;
     }
 
     public class MondayBoardList

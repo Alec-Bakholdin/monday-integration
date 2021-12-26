@@ -6,6 +6,9 @@ using monday_integration.src.aqua;
 using monday_integration.src.aqua.model;
 using monday_integration.src.logging;
 using monday_integration.src.monday;
+using monday_integration.src.monday.model;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace monday_integration.src
 {
@@ -33,7 +36,11 @@ namespace monday_integration.src
             //logger.Info(response);
 
             var api = MondayApiFactory.GetApi();
-            var boards = await api.GetMondayBoards();
+            var options = new MondayBoardBodyOptions(){name=true};
+            var boards = await api.GetMondayBoards(options);
+            foreach(var board in boards) {
+                logger.Info(JsonConvert.SerializeObject(board));
+            }
 
             //foreach(var board in listOfBoards) {
             //    logger.Info(board);
