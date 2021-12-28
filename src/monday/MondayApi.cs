@@ -23,19 +23,7 @@ namespace monday_integration.src.monday
             __lock = new SemaphoreSlim(1, 1);
         }
 
-        public async Task<List<MondayBoard>> GetMondayBoards(MondayBoardBodyOptions options) {
-            var query = @"{boards(){$body_options}}";
-            var variables = new {
-                body_options = options.GetBody()
-            };
-            
-            var request = new GraphQLRequest() {Query = SubstituteVariables(query, variables)};
-
-            var response = await QueryAsync<MondayBoardList>(request);
-            return response.boards;
-        }
-
-        private async Task<T> MutateAsync<T>(GraphQLRequest request) {
+        public async Task<T> MutateAsync<T>(GraphQLRequest request) {
             try{
                 while(true) {
                     await __lock.WaitAsync();
@@ -51,7 +39,7 @@ namespace monday_integration.src.monday
             }
         }
 
-        private async Task<T> QueryAsync<T>(GraphQLRequest request) {
+        public async Task<T> QueryAsync<T>(GraphQLRequest request) {
             try{
                 while(true) {
                     await __lock.WaitAsync();
@@ -81,15 +69,6 @@ namespace monday_integration.src.monday
             return true;
         }
 
-        private string SubstituteVariables(string templateString, object variables) {
-            var outputString = templateString;
-            foreach(var property in variables.GetType().GetProperties()) {
-                var varName = "$" + property.Name;
-                var varValue = property.GetValue(variables).ToString();
-                outputString = outputString.Replace(varName, varValue);
-            }
-            return outputString;
-        }
 
         private bool EncounteredUnexpectedError(GraphQLError[] graphQLErrors) {
             return graphQLErrors != null && graphQLErrors.Length > 0 && !ComplexityLimitReached(graphQLErrors);

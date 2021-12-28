@@ -50,6 +50,7 @@ namespace monday_integration.src.aqua {
 
                 if (response.jobStatus == AquaJobStatus.Completed) {
                     logger.Info($"{response.jobStatusText} ({jobId})");
+                    publishLink = response.publishLink;
                     return;
                 } else if (i % 4 == 0) {
                     logger.Info($"JobId - {jobId}, status - {response.jobStatus} {response.jobStatusText}");

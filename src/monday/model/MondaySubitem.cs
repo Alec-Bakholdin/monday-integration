@@ -4,30 +4,28 @@ using System.Linq;
 
 namespace monday_integration.src.monday.model
 {
-    public class MondayItemBodyOptions : MondayBodyOptions {
-        public bool id {get; set;} = true;
-        public bool name {get; set;} = false;
-        public bool board_id {get; set;} = false;
+    public class MondaySubitemBodyOptions : MondayBodyOptions {
+        public bool parent_item_id {get; set;} = false;
+        public bool name {get; set;} = true;
     }
 
-    public class MondayItem
+    public class MondaySubitem
     {
-        public string id {get; set;}
         public string item_name {get; set;}
-        public string board_id {get; set;}
-
         public List<MondayColumnValue> column_values {get; set;} = new List<MondayColumnValue>();
-        public List<MondaySubitem> subitems {get; set;} = new List<MondaySubitem>();
-        
-        public MondayItem(string item_name) {
+
+        private MondayItem parent_item {get; set;}
+
+        public MondaySubitem(MondayItem parent_item, string item_name) {
+            this.parent_item = parent_item;
             this.item_name = item_name;
         }
 
-        public string GetCreateItemParameters()
+        public string GetCreateSubitemParameters()
         {
-            if (board_id == null || item_name == null)
+            if (parent_item.id == null || item_name == null)
             {
-                throw new InvalidOperationException("Board ID and item name must not be null");
+                throw new InvalidOperationException("parent_item_id and item_name must not be null");
             }
             Dictionary<string, string> paramDict = GetParamDictionary();
             var paramStrList = paramDict.Select(pair => $"{pair.Key}: {pair.Value}");
@@ -38,7 +36,7 @@ namespace monday_integration.src.monday.model
         {
             var paramDict = new Dictionary<string, string>();
             paramDict["item_name"] = $"\"{item_name}\"";
-            paramDict["board_id"] = board_id;
+            paramDict["parent_item_id"] = parent_item.id;
             if (column_values.Count > 0)
             {
                 var colValStr = MondayColumnValue.GetColumnValuesStr(column_values);
@@ -47,9 +45,5 @@ namespace monday_integration.src.monday.model
 
             return paramDict;
         }
-    }
-
-    public class MondayCreateItemResponse {
-        public MondayItem create_item {get; set;}
     }
 }

@@ -5,6 +5,7 @@ namespace monday_integration.src.monday.model
     public class MondayBoardBodyOptions : MondayBodyOptions {
         public bool id {get; set;} = false;
         public bool name {get; set;} = false;
+        public bool workspace_id {get; set;} = false;
         
         public MondayItemBodyOptions items {get; set;} = null;
         public MondayColumnBodyOptions columns {get; set;} = null;
@@ -14,6 +15,7 @@ namespace monday_integration.src.monday.model
     {
         public string id {get; set;}
         public string name {get; set;}
+        public string workspace_id {get; set;}
 
         public List<MondayItem> items;
         public List<MondayColumn> columns;

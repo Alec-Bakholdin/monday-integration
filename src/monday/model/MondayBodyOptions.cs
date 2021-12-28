@@ -14,7 +14,7 @@ namespace monday_integration.src.monday.model
                     propValues.Add(prop.Name);
                 } else if(IsBodyOptionsType(prop.PropertyType)) {
                     var bodyOptions = (MondayBodyOptions)prop.GetValue(this);
-                    if(bodyOptions.HasBody()) {
+                    if(bodyOptions != null && bodyOptions.HasBody()) {
                         var bodyOptionsStr = $"{prop.Name}{{{bodyOptions.GetBody()}}}";
                         propValues.Add(bodyOptionsStr);
                     }

@@ -52,6 +52,9 @@ namespace monday_integration.src.api
             restRequest.IncreaseNumAttempts();
             logger.Debug($"Executing {restRequest.Method} {_restClient.BaseUrl}{restRequest.Resource}{restRequest.Parameters}");
             var response = await _restClient.ExecuteAsync<T>(restRequest);
+            if(!response.IsSuccessful) {
+                throw new AimsApiError(response.Content, response.StatusCode);
+            }
             return response;
         }
     }

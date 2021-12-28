@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using monday_integration.src.api;
@@ -30,16 +33,30 @@ namespace monday_integration.src
         }
 
         private static async Task Execute() {
-            //var aquaClient = new AquaClient(settings.AimsJobId);
+            var aquaClient = new AquaClient(settings.AimsJobId);
             //await aquaClient.RerunBackgroundJob();
-            //var response = await aquaClient.FetchJsonData<WitreStylePO>();
-            //logger.Info(response);
+            var stylePOs = await aquaClient.FetchJsonData<WitreStylePO>();
 
-            var api = MondayApiFactory.GetApi();
-            var options = new MondayBoardBodyOptions(){name=true};
-            var boards = await api.GetMondayBoards(options);
+            var mondayClient = new MondayClient();
+            var options = new MondayBoardBodyOptions(){name=true, id=true, workspace_id=true};
+            var boards = await mondayClient.GetMondayBoards(options);
+            var vendorBoardIdDict = new Dictionary<string, string>();
             foreach(var board in boards) {
-                logger.Info(JsonConvert.SerializeObject(board));
+                if(board.workspace_id == null) continue;
+                var match = new Regex(@"^([\d\w]+) - [\w\s]+$").Match(board.name);
+                if(match.Success) {
+                    var vendor = match.Groups[1].Value;
+                    vendorBoardIdDict[vendor] = board.id;
+                    logger.Info($"{vendor}: {board.id}");
+                }
+            }
+            var mondayItems = mondayClient.MapWitreStylePosToMondayItems(stylePOs, vendorBoardIdDict);
+            mondayItems = mondayItems.Where(item => item.board_id != null).ToList();
+            foreach(var mondayItem in mondayItems) {
+                await mondayClient.CreateMondayItem(mondayItem);
+                foreach(var subitem in mondayItem.subitems) {
+                    await mondayClient.CreateMondaySubitem(subitem);
+                }
             }
 
             //foreach(var board in listOfBoards) {
