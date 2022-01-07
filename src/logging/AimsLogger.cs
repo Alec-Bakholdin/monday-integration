@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace monday_integration.src.logging
 {
@@ -26,7 +27,7 @@ namespace monday_integration.src.logging
         public void Info(List<object> listOfObjects) {
             var message = "";
             foreach(var obj in listOfObjects) {
-                message += obj.ToString();
+                message += JsonConvert.SerializeObject(obj);
             }
             Info(message);
         }

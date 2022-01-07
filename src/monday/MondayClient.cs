@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using GraphQL;
-using monday_integration.src.aqua.model;
 using monday_integration.src.monday.model;
 
 namespace monday_integration.src.monday
@@ -16,71 +15,48 @@ namespace monday_integration.src.monday
             api = MondayApiFactory.GetApi();
         }
 
-        public List<MondayItem> MapWitreStylePosToMondayItems(IEnumerable<WitreStylePO> stylePOs, Dictionary<string, string> vendorBoardIdDict) {
-            var itemDict = new Dictionary<string, MondayItem>();
+        public List<MondayItem> MapWitreStylePosToMondayItems(IEnumerable<WitreStylePO> stylePOs, string boardId) {
+            var itemList = new List<MondayItem>();
             foreach(var stylePO in stylePOs) {
-                if(!itemDict.ContainsKey(stylePO.PurchaseOrderNo)) {
-                    itemDict[stylePO.PurchaseOrderNo] = InitializeNewMondayItem(stylePO);
-                    if(vendorBoardIdDict.ContainsKey(stylePO.Vendor)) {
-                        itemDict[stylePO.PurchaseOrderNo].board_id = vendorBoardIdDict[stylePO.Vendor];
-                    }
+                foreach(var customerPO in stylePO.aimsOrders) {
+                    var item = InitializeNewMondayItem(stylePO, customerPO);
+                    item.board_id = boardId;
+                    itemList.Add(item);
                 }
-                var item = itemDict[stylePO.PurchaseOrderNo];
-                var subitem = InitializeNewMondaySubitem(stylePO, item);
-                item.subitems.Add(subitem);
             }
-            return itemDict.Select(pair => pair.Value).ToList();
+            return itemList;
         }
 
-        private MondaySubitem InitializeNewMondaySubitem(WitreStylePO stylePO, MondayItem parentItem)
-        {
-            var subitem = new MondaySubitem(parentItem, parentItem.subitems.Count.ToString());
-            foreach(var propInfo in typeof(WitreStylePO).GetProperties()) {
-                var subitemColAttribute = propInfo.GetCustomAttribute<MondaySubitemColumnAttribute>();
-                if(subitemColAttribute != null)
-                {
-                    MondayColumnValue columnValue = InitializeNewColumnValue(stylePO, propInfo, subitemColAttribute.columnId);
-                    subitem.column_values.Add(columnValue);
-                }
+        private MondayItem InitializeNewMondayItem(params object[] sourceObjects) {
+            var item = new MondayItem();
+            var headerValues = new List<string>();
+            foreach(var obj in sourceObjects) {
+                var newHeaders = PopulateItemWithObjectValues(item, obj);
+                headerValues.AddRange(newHeaders);
             }
-            return subitem;
-        }
-
-        private MondayItem InitializeNewMondayItem(WitreStylePO stylePO) {
-            var item = new MondayItem(stylePO.PurchaseOrderNo);
-            foreach(var propInfo in typeof(WitreStylePO).GetProperties()) {
-                var itemColAttribute = propInfo.GetCustomAttribute<MondayItemColumnAttribute>();
-                if(itemColAttribute != null)
-                {
-                    MondayColumnValue columnValue = InitializeNewColumnValue(stylePO, propInfo, itemColAttribute.columnId);
-                    item.column_values.Add(columnValue);
-                }
-            }
+            item.name = String.Join(" - ", headerValues);
             return item;
         }
 
-        private MondayColumnValue InitializeNewColumnValue(WitreStylePO stylePO, PropertyInfo propInfo, string columnId)
+        private static List<string> PopulateItemWithObjectValues(MondayItem item, object obj)
         {
-            var columnValue = new MondayColumnValue();
-            columnValue.id = columnId;
-            columnValue.title = propInfo.Name;
-            var value = propInfo.GetValue(stylePO);
-            columnValue.value = propInfo.PropertyType == typeof(DateTime) ? ((DateTime)value).ToString("yyyy-MM-dd") : value.ToString();
-            return columnValue;
-        }
-
-
-
-        public async Task<MondaySubitem> CreateMondaySubitem(MondaySubitem subitem, MondaySubitemBodyOptions options = null) {
-            var query = "mutation{create_subitem($parameters){$body_options}}";
-            var variables = new {
-                parameters = subitem.GetCreateSubitemParameters(),
-                body_options = options != null ? options.GetBody() : new MondaySubitemBodyOptions().GetBody()
-            };
-
-            var request = new GraphQLRequest() {Query = SubstituteVariables(query, variables)};
-            var response = await api.MutateAsync<MondaySubitem>(request);
-            return response;
+            List<string> headerValues = new List<string>();
+            foreach (var propInfo in obj.GetType().GetProperties())
+            {
+                var itemColAttribute = propInfo.GetCustomAttribute<MondayItemColumnAttribute>();
+                if (itemColAttribute != null)
+                {
+                    MondayColumnValue columnValue = new MondayColumnValue(itemColAttribute, propInfo.GetValue(obj));
+                    item.column_values.Add(columnValue);
+                }
+                var itemHeaderAttribute = propInfo.GetCustomAttribute<MondayHeaderAttribute>();
+                if (itemHeaderAttribute != null)
+                {
+                    var headerValue = propInfo.GetValue(obj).ToString();
+                    headerValues.Add(headerValue);
+                }
+            }
+            return headerValues;
         }
 
         public async Task<MondayItem> CreateMondayItem(MondayItem item, MondayItemBodyOptions options = null) {
@@ -99,10 +75,28 @@ namespace monday_integration.src.monday
             return response.create_item;
         }
 
-        public async Task<List<MondayBoard>> GetMondayBoards(MondayBoardBodyOptions options) {
-            var query = @"{boards(){$body_options}}";
+        public async Task<MondayBoard> GetMondayBoard(string boardId) {
+            int boardIdParsed;
+            if(boardId == null || !Int32.TryParse(boardId, out boardIdParsed)) {
+                throw new InvalidOperationException("boardId string must be a non-null integer");
+            }
+            var paramOptions = new MondayBoardParameterOptions(){ids=boardIdParsed};
+            var itemOptions = new MondayItemBodyOptions(){name=true};
+            var bodyOptions = new MondayBoardBodyOptions(){name=true, id=true, items=itemOptions};
+            var boards = await GetMondayBoards(paramOptions, bodyOptions);
+            if(boards.Count != 1) {
+                throw new InvalidOperationException($"GetMondayBoard expects 1 board from Monday's API but found {boards.Count}");
+            }
+            return boards[0];
+        }
+
+        public async Task<List<MondayBoard>> GetMondayBoards(MondayBoardParameterOptions paramOptionsObj = null, MondayBoardBodyOptions bodyOptionsObj = null) {
+            paramOptionsObj = paramOptionsObj == null ? new MondayBoardParameterOptions() : paramOptionsObj;
+            bodyOptionsObj = bodyOptionsObj == null ? new MondayBoardBodyOptions() : bodyOptionsObj;
+            var query = @"{boards($parameters){$body_options}}";
             var variables = new {
-                body_options = options.GetBody()
+                parameters = paramOptionsObj.GetParameters(),
+                body_options = bodyOptionsObj.GetBody()
             };
             
             var request = new GraphQLRequest() {Query = SubstituteVariables(query, variables)};

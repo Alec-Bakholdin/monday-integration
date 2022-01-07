@@ -4,6 +4,8 @@ using ComposableAsync;
 using System;
 using System.Threading.Tasks;
 using monday_integration.src.logging;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace monday_integration.src.api
 {
@@ -12,12 +14,17 @@ namespace monday_integration.src.api
         private AimsLogger logger;
         private RestClient _restClient;
         private TimeLimiter _timeLimiter;
+        private SemaphoreSlim _cacheLock;
+        private Dictionary<string, object> _cache;
 
         public AimsApi(string baseUrl, string bearerToken) {
             this.logger = AimsLoggerFactory.CreateLogger(typeof(AimsApi));
             this._restClient = new RestClient(baseUrl);
+            this._restClient.AddHandler("text/csv", () => { return new CsvDeserializer();});
             this._restClient.AddDefaultHeader("Authorization", bearerToken);
             this._timeLimiter = TimeLimiter.GetFromMaxCountByInterval(1, TimeSpan.FromSeconds(1));
+            this._cacheLock = new SemaphoreSlim(1, 1);
+            this._cache = new Dictionary<string, object>();
         }
         
         public AimsApi(string baseUrl, string bearerToken, int requestsPerSecond) {
@@ -25,6 +32,20 @@ namespace monday_integration.src.api
             this._restClient = new RestClient(baseUrl);
             this._restClient.AddDefaultHeader("Authorization", bearerToken);
             this._timeLimiter = TimeLimiter.GetFromMaxCountByInterval(requestsPerSecond, TimeSpan.FromSeconds(1));
+            this._cacheLock = new SemaphoreSlim(1, 1);
+            this._cache = new Dictionary<string, object>();
+        }
+
+        public async Task<T> GetCachedResponseAsync<T>(string resource) {
+            await _cacheLock.WaitAsync();
+            if(_cache.ContainsKey(resource)) {
+                _cacheLock.Release();
+                return (T)_cache[resource];
+            }
+            var response = await GetAsync<T>(resource);
+            _cache[resource] = response;
+            _cacheLock.Release();
+            return response;
         }
 
         public async Task<T> GetAsync<T>(string resource) {

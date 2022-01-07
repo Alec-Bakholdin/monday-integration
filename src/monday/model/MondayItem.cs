@@ -13,19 +13,14 @@ namespace monday_integration.src.monday.model
     public class MondayItem
     {
         public string id {get; set;}
-        public string item_name {get; set;}
+        public string name {get; set;}
         public string board_id {get; set;}
 
         public List<MondayColumnValue> column_values {get; set;} = new List<MondayColumnValue>();
-        public List<MondaySubitem> subitems {get; set;} = new List<MondaySubitem>();
-        
-        public MondayItem(string item_name) {
-            this.item_name = item_name;
-        }
 
         public string GetCreateItemParameters()
         {
-            if (board_id == null || item_name == null)
+            if (board_id == null || name == null)
             {
                 throw new InvalidOperationException("Board ID and item name must not be null");
             }
@@ -37,12 +32,13 @@ namespace monday_integration.src.monday.model
         private Dictionary<string, string> GetParamDictionary()
         {
             var paramDict = new Dictionary<string, string>();
-            paramDict["item_name"] = $"\"{item_name}\"";
+            paramDict["item_name"] = $"\"{name}\"";
             paramDict["board_id"] = board_id;
+            paramDict["create_labels_if_missing"] = "true";
             if (column_values.Count > 0)
             {
                 var colValStr = MondayColumnValue.GetColumnValuesStr(column_values);
-                paramDict["column_values"] = $"\"{colValStr}\"";
+                paramDict["column_values"] = colValStr;
             }
 
             return paramDict;

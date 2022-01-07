@@ -33,34 +33,46 @@ namespace monday_integration.src
         }
 
         private static async Task Execute() {
-            var aquaClient = new AquaClient(settings.AimsJobId);
+            var stylePOsAquaClient = new AquaClient(settings.AimsStylePOsLineDetailsAndFieldsJobId);
+            var allocationReportAquaClient = new AquaClient(settings.AimsAllocationDetailsReportJobId);
             //await aquaClient.RerunBackgroundJob();
-            var stylePOs = await aquaClient.FetchJsonData<WitreStylePO>();
+            var vendorPOs = await stylePOsAquaClient.FetchData<WitreStyleVendorPO>();
+
+            var allocationReport = await allocationReportAquaClient.FetchData<WitreAllocationDetails>();
+            var groupedAllocationReport = allocationReport
+                .Where(obj => obj.RecordType == RecordType.PO)
+                .GroupBy(obj => obj.GetIdentifier())
+                .Select(group => {
+                    var elementCopy = group.First().ShallowCopy();
+                    elementCopy.Allocatedqty = group.Sum(item => item.Allocatedqty);
+                    return elementCopy;
+                })
+                .ToList();
+            var stylePOs = vendorPOs.Select(vendorPO => new WitreStylePO(vendorPO, 
+                groupedAllocationReport.Where(orderLine => 
+                    orderLine.WIPReference.Trim() == vendorPO.PurchaseOrderNo.Trim() &&
+                    orderLine.Style.Trim() == vendorPO.Style.Trim() &&
+                    orderLine.Color.Trim() == vendorPO.Color.Trim()
+                )
+            )).ToList();
+            
 
             var mondayClient = new MondayClient();
-            var options = new MondayBoardBodyOptions(){name=true, id=true, workspace_id=true};
-            var boards = await mondayClient.GetMondayBoards(options);
-            var vendorBoardIdDict = new Dictionary<string, string>();
-            foreach(var board in boards) {
-                if(board.workspace_id == null) continue;
-                var match = new Regex(@"^([\d\w]+) - [\w\s]+$").Match(board.name);
-                if(match.Success) {
-                    var vendor = match.Groups[1].Value;
-                    vendorBoardIdDict[vendor] = board.id;
-                    logger.Info($"{vendor}: {board.id}");
-                }
-            }
-            var mondayItems = mondayClient.MapWitreStylePosToMondayItems(stylePOs, vendorBoardIdDict);
-            mondayItems = mondayItems.Where(item => item.board_id != null).ToList();
+            var aimsIntegrationBoard = await mondayClient.GetMondayBoard(settings.MondayAimsIntegrationBoardId);
+            var integratedPOs = aimsIntegrationBoard.items.Select(item => item.name).ToHashSet();
+            var mondayItems = mondayClient.MapWitreStylePosToMondayItems(stylePOs, settings.MondayAimsIntegrationBoardId);
             foreach(var mondayItem in mondayItems) {
-                await mondayClient.CreateMondayItem(mondayItem);
-                foreach(var subitem in mondayItem.subitems) {
-                    await mondayClient.CreateMondaySubitem(subitem);
+                if(!integratedPOs.Contains(mondayItem.name)) {
+                    await mondayClient.CreateMondayItem(mondayItem);
                 }
             }
 
-            //foreach(var board in listOfBoards) {
-            //    logger.Info(board);
+            //var mondayItems = mondayClient.MapWitreStylePosToMondayItems(stylePOs, settings.MondayAimsIntegrationBoardId);
+            //mondayItems = mondayItems.Where(item => item.board_id != null).ToList();
+            //foreach(var mondayItem in mondayItems) {
+            //    if(!integratedPOs.Contains(mondayItem.name)) {
+            //        await mondayClient.CreateMondayItem(mondayItem);
+            //    }
             //}
         }
 

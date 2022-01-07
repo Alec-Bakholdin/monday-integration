@@ -2,6 +2,10 @@ using System.Collections.Generic;
 
 namespace monday_integration.src.monday.model
 {
+    public class MondayBoardParameterOptions : MondayParameterOptions {
+        public int ids {get; set;}
+    }
+
     public class MondayBoardBodyOptions : MondayBodyOptions {
         public bool id {get; set;} = false;
         public bool name {get; set;} = false;
@@ -13,7 +17,7 @@ namespace monday_integration.src.monday.model
 
     public class MondayBoard
     {
-        public string id {get; set;}
+        public int id {get; set;}
         public string name {get; set;}
         public string workspace_id {get; set;}
 

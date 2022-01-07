@@ -32,11 +32,17 @@ namespace monday_integration.src.aqua {
             return response;
         }
 
-        public async Task<List<T>> FetchJsonData<T>()
+        public async Task<List<T>> FetchData<T>(AquaDataType dataType = AquaDataType.CSV)
         {
             await WaitForJobCompletion();
-            var response = await api.GetAsync<AquaPublishLinkResponse<T>>(publishLink);
-            return response.data;
+            switch(dataType) {
+                case AquaDataType.JSON:
+                    return (await api.GetAsync<AquaPublishLinkResponse<T>>(publishLink)).data;
+                case AquaDataType.CSV:
+                    return await api.GetAsync<List<T>>(publishLink);
+                default:
+                    throw new NotSupportedException($"Data type {dataType} is not supported yet");
+            }
         }
 
         private async Task WaitForJobCompletion()
