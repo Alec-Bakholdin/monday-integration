@@ -1,17 +1,13 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using monday_integration.src.api;
-using monday_integration.src.aqua;
 using monday_integration.src.aqua.model;
 using monday_integration.src.logging;
 using monday_integration.src.monday;
 using monday_integration.src.monday.model;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using withered_tree_monday_integration.src;
 
 namespace monday_integration.src
 {
@@ -33,13 +29,10 @@ namespace monday_integration.src
         }
 
         private static async Task Execute() {
-            var stylePOsAquaClient = new AquaClient(settings.AimsStylePOsLineDetailsAndFieldsJobId);
-            var allocationReportAquaClient = new AquaClient(settings.AimsAllocationDetailsReportJobId);
-            //await aquaClient.RerunBackgroundJob();
-            var vendorPOs = await stylePOsAquaClient.FetchData<WitreStyleVendorPO>();
+            var mainData = new MainDataFetcher(settings);
+            await mainData.FetchAllInParallel();
 
-            var allocationReport = await allocationReportAquaClient.FetchData<WitreAllocationDetails>();
-            var groupedAllocationReport = allocationReport
+            var allocationReportGroupedByVendorPO = mainData.allocationDetails
                 .Where(obj => obj.RecordType == RecordType.PO)
                 .GroupBy(obj => obj.GetIdentifier())
                 .Select(group => {
@@ -47,36 +40,26 @@ namespace monday_integration.src
                     elementCopy.Allocatedqty = group.Sum(item => item.Allocatedqty);
                     return elementCopy;
                 })
-                .ToList();
-            var stylePOs = vendorPOs.Select(vendorPO => new WitreStylePO(vendorPO, 
-                groupedAllocationReport.Where(orderLine => 
-                    orderLine.WIPReference.Trim() == vendorPO.PurchaseOrderNo.Trim() &&
-                    orderLine.Style.Trim() == vendorPO.Style.Trim() &&
-                    orderLine.Color.Trim() == vendorPO.Color.Trim()
-                )
-            )).ToList();
+                .GroupBy(obj => obj.WIPReference)
+                .ToDictionary(group => group.Key, group => group.ToList());
+            mainData.vendorPOs   
+                    .Where(po => allocationReportGroupedByVendorPO.ContainsKey(po.PurchaseOrderNo))
+                    .ToList()
+                    .ForEach(po => po.allocationDetails = allocationReportGroupedByVendorPO[po.PurchaseOrderNo]);
             
-
             var mondayClient = new MondayClient();
-            var aimsIntegrationBoard = await mondayClient.GetMondayBoard(settings.MondayAimsIntegrationBoardId);
-            var integratedPOs = aimsIntegrationBoard.items.Select(item => item.name).ToHashSet();
-            var mondayItems = mondayClient.MapWitreStylePosToMondayItems(stylePOs, settings.MondayAimsIntegrationBoardId);
+            var integratedPOs = mainData.aimsIntegrationBoard.items.ToDictionary(item => item.name);
+            var mondayItems = MondayClient.MapWitreStylePosToMondayItems(mainData.vendorPOs, settings.MondayAimsIntegrationBoardId);
             foreach(var mondayItem in mondayItems) {
-                if(!integratedPOs.Contains(mondayItem.name)) {
+                MondayItem oldItem;
+                if(!integratedPOs.TryGetValue(mondayItem.name, out oldItem)) {
                     await mondayClient.CreateMondayItem(mondayItem);
+                } else if(mondayItem.isDifferentFromOldItem(oldItem)){
+                    await mondayClient.UpdateMondayItem(oldItem, mondayItem);
+                    logger.Info($"Updating {oldItem.name}({oldItem.id})");
                 }
             }
-
-            //var mondayItems = mondayClient.MapWitreStylePosToMondayItems(stylePOs, settings.MondayAimsIntegrationBoardId);
-            //mondayItems = mondayItems.Where(item => item.board_id != null).ToList();
-            //foreach(var mondayItem in mondayItems) {
-            //    if(!integratedPOs.Contains(mondayItem.name)) {
-            //        await mondayClient.CreateMondayItem(mondayItem);
-            //    }
-            //}
         }
-
-
 
         private static void Initialize(ILogger logger) {
             AimsLoggerFactory.logger = logger;

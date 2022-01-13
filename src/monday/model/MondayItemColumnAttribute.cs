@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using monday_integration.src.api;
 
@@ -9,20 +10,21 @@ namespace monday_integration.src.monday.model
         date,
         dropdown,
         numbers,
-        connect_boards
     }
 
     public class MondayItemColumnAttribute : Attribute
     {
         public string columnId {get; private set;}
         public MondayItemColumnType columnType {get; private set;}
+        public bool update {get; private set;}
 
-        public MondayItemColumnAttribute(string columnId) {
+        public MondayItemColumnAttribute(string columnId, bool update = true) {
             this.columnId = columnId;
+            this.update = update;
             if(columnId == "")
                 return;
 
-            var match = Regex.Match(this.columnId, "^([a-z_]+)[0-9]*");
+            var match = Regex.Match(this.columnId, "^([a-z]+)[_0-9]*");
             this.columnType = Enum.Parse<MondayItemColumnType>(match.Groups[1].Value);
         }
 
@@ -34,8 +36,26 @@ mutation{
   }
 }
 */
+        public string GetStringText(object obj) {
+            switch(columnType) {
+                case MondayItemColumnType.text:
+                case MondayItemColumnType.numbers:
+                case MondayItemColumnType.dropdown:
+                    return obj.ToString().Replace("\"", "");
+                case MondayItemColumnType.date:                    
+                    if(obj.GetType() == typeof(DateTime?)) {
+                        return ((DateTime?)obj)?.ToString("yyyy-MM-dd");
+                    } else if(obj.GetType() == typeof(DateTime)) {
+                        return ((DateTime)obj).ToString("yyyy-MM-dd");
+                    }
+                    return obj.ToString();
+                default:
+                    throw new InvalidOperationException($"Column type {columnType} is not recognized");
+            }
+        }
+
         public string GetStringValue(object obj) {
-            return GetValue(obj).Replace("\"", @"\""");
+            return GetValue(obj);
         }
 
         private String GetValue(object obj) {
@@ -59,6 +79,20 @@ mutation{
                 default:
                     throw new NotImplementedException($"Haven't implemented column type {columnType}");
             }   
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is MondayItemColumnAttribute attribute &&
+                   base.Equals(obj) &&
+                   EqualityComparer<object>.Default.Equals(TypeId, attribute.TypeId) &&
+                   columnId == attribute.columnId &&
+                   columnType == attribute.columnType;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(base.GetHashCode(), TypeId, columnId, columnType);
         }
     }
 }

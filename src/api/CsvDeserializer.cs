@@ -27,6 +27,8 @@ namespace monday_integration.src.api
             var csvReader = new CsvReader(reader, configuration);
             csvReader.Configuration.TypeConverterCache.AddConverter<DateTime?>(new CustomDateTimeConverter());
             csvReader.Configuration.TypeConverterCache.AddConverter<string>(new CustomStringDeserializer());
+            csvReader.Configuration.HeaderValidated = null;
+            csvReader.Configuration.MissingFieldFound = null;
 
             var listOfObjects = csvReader.GetRecords(internalType);
             var listOfGenerics = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(internalType));

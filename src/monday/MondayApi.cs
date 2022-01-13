@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using GraphQL;
 using GraphQL.Client.Http;
 using GraphQL.Client.Serializer.Newtonsoft;
-using monday_integration.src.monday.model;
 
 namespace monday_integration.src.monday
 {

@@ -1,3 +1,5 @@
+using System;
+
 namespace monday_integration.src
 {
     public class MondayIntegrationSettings
@@ -9,11 +11,16 @@ namespace monday_integration.src
 
         public string MondayBaseURL {get; private set;}
         public string MondayApiKey {get; private set;}
-        public string MondayAimsIntegrationBoardId {get; private set;}
+        public int MondayAimsIntegrationBoardId {get; private set;}
 
         public MondayIntegrationSettings(System.Collections.IDictionary dictionary) {
             foreach(var property in typeof(MondayIntegrationSettings).GetProperties()) {
-                property.SetValue(this, dictionary[property.Name]);
+                if(property.PropertyType == typeof(int)) {
+                    property.SetValue(this, Int32.Parse(dictionary[property.Name].ToString()));
+                } else {
+                    property.SetValue(this, dictionary[property.Name]);
+                }
+                
             }
         }
 

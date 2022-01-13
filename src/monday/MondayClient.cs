@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using GraphQL;
+using monday_integration.src.aqua.model;
 using monday_integration.src.monday.model;
 
 namespace monday_integration.src.monday
@@ -15,10 +16,11 @@ namespace monday_integration.src.monday
             api = MondayApiFactory.GetApi();
         }
 
-        public List<MondayItem> MapWitreStylePosToMondayItems(IEnumerable<WitreStylePO> stylePOs, string boardId) {
+        public static List<MondayItem> MapWitreStylePosToMondayItems(IEnumerable<WitreStyleVendorPO> stylePOs, int boardId) {
             var itemList = new List<MondayItem>();
             foreach(var stylePO in stylePOs) {
-                foreach(var customerPO in stylePO.aimsOrders) {
+                if(stylePO.allocationDetails == null) continue;
+                foreach(var customerPO in stylePO.allocationDetails) {
                     var item = InitializeNewMondayItem(stylePO, customerPO);
                     item.board_id = boardId;
                     itemList.Add(item);
@@ -27,7 +29,7 @@ namespace monday_integration.src.monday
             return itemList;
         }
 
-        private MondayItem InitializeNewMondayItem(params object[] sourceObjects) {
+        private static MondayItem InitializeNewMondayItem(params object[] sourceObjects) {
             var item = new MondayItem();
             var headerValues = new List<string>();
             foreach(var obj in sourceObjects) {
@@ -46,8 +48,19 @@ namespace monday_integration.src.monday
                 var itemColAttribute = propInfo.GetCustomAttribute<MondayItemColumnAttribute>();
                 if (itemColAttribute != null)
                 {
-                    MondayColumnValue columnValue = new MondayColumnValue(itemColAttribute, propInfo.GetValue(obj));
+                    var columnValue = new MondayColumnValue(itemColAttribute, propInfo.GetValue(obj));
                     item.column_values.Add(columnValue);
+
+                    //HACK: fix this garbage
+                    if(columnValue.id == "date44") {
+                        var col = new MondayItemColumnAttribute("date_17", false);
+                        var colVal = new MondayColumnValue(col, columnValue.value);
+                        item.column_values.Add(colVal);
+                    } else if (columnValue.id == "date6") {
+                        var col = new MondayItemColumnAttribute("date5", false);
+                        var colVal = new MondayColumnValue(col, columnValue.value);
+                        item.column_values.Add(colVal);
+                    }
                 }
                 var itemHeaderAttribute = propInfo.GetCustomAttribute<MondayHeaderAttribute>();
                 if (itemHeaderAttribute != null)
@@ -59,11 +72,28 @@ namespace monday_integration.src.monday
             return headerValues;
         }
 
-        public async Task<MondayItem> CreateMondayItem(MondayItem item, MondayItemBodyOptions options = null) {
-            var body_options_obj = options == null ? new MondayItemBodyOptions() : options;
+        public async Task<MondayItem> UpdateMondayItem(MondayItem oldItem, MondayItem newItem, MondayUpdateItemParameters reqParams = null, MondayItemBodyOptions options = null)
+        {
+            var params_obj = reqParams ?? new MondayUpdateItemParameters(oldItem, newItem);
+            var body_options_obj = options ?? new MondayItemBodyOptions();
+            var query = "mutation{change_multiple_column_values($parameters){$body_options}}";
+            var variables = new {
+                parameters = params_obj.GetParameters(),
+                body_options = body_options_obj.GetBody()
+            };
+
+            var request = new GraphQLRequest() {Query = SubstituteVariables(query, variables)};
+            var response = await api.MutateAsync<MondayUpdateItemResponse>(request);
+
+            return response.change_multiple_column_values;
+        }
+
+        public async Task<MondayItem> CreateMondayItem(MondayItem item, MondayCreateItemParameters reqParams = null, MondayItemBodyOptions options = null) {
+            var params_obj = reqParams ?? new MondayCreateItemParameters(item);
+            var body_options_obj = options ?? new MondayItemBodyOptions();
             var query = "mutation{create_item($parameters){$body_options}}";
             var variables = new {
-                parameters = item.GetCreateItemParameters(),
+                parameters = params_obj.GetParameters(),
                 body_options = body_options_obj.GetBody()
             };
 
@@ -75,24 +105,24 @@ namespace monday_integration.src.monday
             return response.create_item;
         }
 
-        public async Task<MondayBoard> GetMondayBoard(string boardId) {
-            int boardIdParsed;
-            if(boardId == null || !Int32.TryParse(boardId, out boardIdParsed)) {
-                throw new InvalidOperationException("boardId string must be a non-null integer");
-            }
-            var paramOptions = new MondayBoardParameterOptions(){ids=boardIdParsed};
-            var itemOptions = new MondayItemBodyOptions(){name=true};
+        public async Task<MondayBoard> GetMondayBoard(int boardId) {
+            var paramOptions = new MondayBoardParameterOptions(new MondayBoard(){id = boardId});
+
+            var columnValueOptions = new MondayColumnValueBodyOptions(){id=true, value=true, text=true};
+            var itemOptions = new MondayItemBodyOptions(){name=true, column_values = columnValueOptions};
             var bodyOptions = new MondayBoardBodyOptions(){name=true, id=true, items=itemOptions};
+            
             var boards = await GetMondayBoards(paramOptions, bodyOptions);
             if(boards.Count != 1) {
                 throw new InvalidOperationException($"GetMondayBoard expects 1 board from Monday's API but found {boards.Count}");
             }
+            boards[0]?.items?.ForEach(item => item.board_id = boardId);
             return boards[0];
         }
 
         public async Task<List<MondayBoard>> GetMondayBoards(MondayBoardParameterOptions paramOptionsObj = null, MondayBoardBodyOptions bodyOptionsObj = null) {
-            paramOptionsObj = paramOptionsObj == null ? new MondayBoardParameterOptions() : paramOptionsObj;
-            bodyOptionsObj = bodyOptionsObj == null ? new MondayBoardBodyOptions() : bodyOptionsObj;
+            paramOptionsObj = paramOptionsObj ?? new MondayBoardParameterOptions(null);
+            bodyOptionsObj = bodyOptionsObj ?? new MondayBoardBodyOptions();
             var query = @"{boards($parameters){$body_options}}";
             var variables = new {
                 parameters = paramOptionsObj.GetParameters(),

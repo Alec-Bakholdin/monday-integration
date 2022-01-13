@@ -1,9 +1,13 @@
+using System;
 using System.Collections.Generic;
 
 namespace monday_integration.src.monday.model
 {
-    public class MondayBoardParameterOptions : MondayParameterOptions {
-        public int ids {get; set;}
+    public class MondayBoardParameterOptions : MondayParameters<MondayBoard> {
+        public Func<MondayBoard, int> ids {get; set;} = (board) => board.id;
+
+        public MondayBoardParameterOptions(MondayBoard board) : base(board) {}
+        public MondayBoardParameterOptions(int boardId) : base(new MondayBoard() {id = boardId}) {}
     }
 
     public class MondayBoardBodyOptions : MondayBodyOptions {
