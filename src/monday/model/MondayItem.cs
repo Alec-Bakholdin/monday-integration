@@ -7,17 +7,16 @@ namespace monday_integration.src.monday.model
 {
     public class MondayCreateItemParameters : MondayParameters<MondayItem> {
         public Func<MondayItem, string> item_name {get; set;} = (item) => item.name;
-        public Func<MondayItem, int?> board_id {get; set;} = (item) => item.board_id;
+        public Func<MondayItem, long?> board_id {get; set;} = (item) => item.board_id;
         public Func<MondayItem, bool> create_labels_if_missing {get; set;} = (item) => true;
-        public Func<MondayItem, Dictionary<string, string>> column_values {get; set;} = 
-            (item) => item.column_values.ToDictionary(e => e.id, e => e.value);
+        public Func<MondayItem, Dictionary<string, MondayColumnValue>> column_values {get; set;} = (item) => item.columnValueDict;
 
         public MondayCreateItemParameters(MondayItem item) : base(item) {}
     }
     
     public class MondayUpdateItemParameters : MondayParameters<MondayItem> {
-        public Func<MondayItem, int?> item_id {get; set;} = (item) => item.id;
-        public Func<MondayItem, int?> board_id {get; set;} = (item) => item.board_id;
+        public Func<MondayItem, long?> item_id {get; set;} = (item) => item.id;
+        public Func<MondayItem, long?> board_id {get; set;} = (item) => item.board_id;
         public Func<MondayItem, bool> create_labels_if_missing {get; set;} = (item) => true;
         public Func<MondayItem, Dictionary<string, string>> column_values {get; private set;}
         
@@ -35,46 +34,64 @@ namespace monday_integration.src.monday.model
 
     public class MondayItem
     {
-        public int id {get; set;}
+        public long id {get; set;}
         public string name {get; set;}
-        public int? board_id {get; set;}
+        public long? board_id {get; set;}
 
-        public HashSet<MondayColumnValue> column_values {get; set;} = new HashSet<MondayColumnValue>();
 
-        // TODO: manipulate permissions somehow to make this more efficient
-        // make column_values read-only and make an add() function of sorts
+        public IReadOnlyCollection<MondayColumnValue> columnValues {
+            get {
+                return _column_values;
+            }
+        }
+        [JsonProperty("column_values")]
+        private HashSet<MondayColumnValue> _column_values = new HashSet<MondayColumnValue>();
+        public Dictionary<string, MondayColumnValue> columnValueDict {
+            get {
+                if(_columnValueDict == null)
+                    _columnValueDict = columnValues.ToDictionary(colVal => colVal.id);
+                return _columnValueDict;
+            } 
+            private set {
+                _columnValueDict = value; 
+            }
+        }
+        private Dictionary<string, MondayColumnValue> _columnValueDict;
+        
+        public void AddColumnValue(MondayColumnValue columnValue) {
+            if(columnValue.id == null) {
+                throw new InvalidOperationException("Column value id must not be null");
+            }
+            if(columnValueDict.ContainsKey(columnValue.id)) {
+                _column_values.RemoveWhere(colVal => colVal.id == columnValue.id);
+            }
+            _column_values.Add(columnValue);
+            columnValueDict[columnValue.id] = columnValue;
+        }
+
+        public void AddAllColumnValues(IEnumerable<MondayColumnValue> colValueList) {
+            foreach(var colVal in colValueList){ 
+                AddColumnValue(colVal);
+            }
+        }
+
         public bool isDifferentFromOldItem(MondayItem oldItem) {
-            var oldColValDict = oldItem.column_values.ToDictionary(item => item.id);
-            foreach(var colVal in column_values) {
-                if(colVal.needsUpdating(oldColValDict[colVal.id])) {
+            foreach(var colVal in oldItem.columnValues) {
+                if(colVal.needsUpdating(oldItem.columnValueDict[colVal.id])) {
                     return true;
                 }
             }
             return false;
         }
+        
         public Dictionary<string, string> getChangedValues(MondayItem oldItem) {
-            var oldColValDict = oldItem.column_values.ToDictionary(item => item.id);
             var changedValsDict = new Dictionary<string, string>();
-            foreach(var colVal in column_values) {
-                if(colVal.needsUpdating(oldColValDict[colVal.id])) {
+            foreach(var colVal in oldItem.columnValues) {
+                if(colVal.needsUpdating(oldItem.columnValueDict[colVal.id])) {
                     changedValsDict.Add(colVal.id, colVal.value);
                 }
             }
             return changedValsDict;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is MondayItem item &&
-                   id == item.id &&
-                   name == item.name &&
-                   board_id == item.board_id &&
-                   EqualityComparer<HashSet<MondayColumnValue>>.Default.Equals(column_values, item.column_values);
-        }
-
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(id, name, board_id, column_values);
         }
     }
 

@@ -37,6 +37,9 @@ mutation{
 }
 */
         public string GetStringText(object obj) {
+            if(obj == null) {
+                return "\"\"";
+            }
             switch(columnType) {
                 case MondayItemColumnType.text:
                 case MondayItemColumnType.numbers:

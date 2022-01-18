@@ -37,18 +37,18 @@ namespace monday_integration.src.monday.model
             if(returnType == typeof(string)) {
                 return "\"" + ((Func<T, string>)function)(target) + "\"";
             }
-            if(returnType == typeof(int?)) {
-                return ((Func<T, int?>)function)(target)?.ToString();
+            if(returnType == typeof(long?)) {
+                return ((Func<T, long?>)function)(target)?.ToString();
             }
-            if(returnType == typeof(int)) {
-                return ((Func<T, int>)function)(target).ToString();
+            if(returnType == typeof(long)) {
+                return ((Func<T, long>)function)(target).ToString();
             }
             if(returnType == typeof(bool)) {
                 return ((Func<T, bool>)function)(target) ? "true" : "false";
             }
-            if(returnType == typeof(Dictionary<string, string>)) {
-                var dict = ((Func<T, Dictionary<string, string>>)function)(target);
-                var joinedDict = ((Dictionary<string, string>)dict).Select(pair => $"\"{pair.Key}\": {pair.Value}".Replace("\"", "\\\""));
+            if(returnType == typeof(Dictionary<string, MondayColumnValue>)) {
+                var dict = ((Func<T, Dictionary<string, MondayColumnValue>>)function)(target);
+                var joinedDict = ((Dictionary<string, MondayColumnValue>)dict).Select(pair => pair.Value.ToString().Replace("\"", "\\\""));
                 var joinedDictStr = String.Join(", ", joinedDict);
                 return "\"{" + joinedDictStr + "}\"";
             }

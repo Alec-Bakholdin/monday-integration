@@ -4,10 +4,10 @@ using System.Collections.Generic;
 namespace monday_integration.src.monday.model
 {
     public class MondayBoardParameterOptions : MondayParameters<MondayBoard> {
-        public Func<MondayBoard, int> ids {get; set;} = (board) => board.id;
+        public Func<MondayBoard, long> ids {get; set;} = (board) => board.id;
 
         public MondayBoardParameterOptions(MondayBoard board) : base(board) {}
-        public MondayBoardParameterOptions(int boardId) : base(new MondayBoard() {id = boardId}) {}
+        public MondayBoardParameterOptions(long boardId) : base(new MondayBoard() {id = boardId}) {}
     }
 
     public class MondayBoardBodyOptions : MondayBodyOptions {
@@ -21,7 +21,7 @@ namespace monday_integration.src.monday.model
 
     public class MondayBoard
     {
-        public int id {get; set;}
+        public long id {get; set;}
         public string name {get; set;}
         public string workspace_id {get; set;}
 

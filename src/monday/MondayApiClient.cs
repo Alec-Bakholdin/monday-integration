@@ -9,67 +9,11 @@ using monday_integration.src.monday.model;
 
 namespace monday_integration.src.monday
 {
-    public class MondayClient
+    public class MondayApiClient
     {
         private MondayApi api;
-        public MondayClient() {
+        public MondayApiClient() {
             api = MondayApiFactory.GetApi();
-        }
-
-        public static List<MondayItem> MapWitreStylePosToMondayItems(IEnumerable<WitreStyleVendorPO> stylePOs, int boardId) {
-            var itemList = new List<MondayItem>();
-            foreach(var stylePO in stylePOs) {
-                if(stylePO.allocationDetails == null) continue;
-                foreach(var customerPO in stylePO.allocationDetails) {
-                    var item = InitializeNewMondayItem(stylePO, customerPO);
-                    item.board_id = boardId;
-                    itemList.Add(item);
-                }
-            }
-            return itemList;
-        }
-
-        private static MondayItem InitializeNewMondayItem(params object[] sourceObjects) {
-            var item = new MondayItem();
-            var headerValues = new List<string>();
-            foreach(var obj in sourceObjects) {
-                var newHeaders = PopulateItemWithObjectValues(item, obj);
-                headerValues.AddRange(newHeaders);
-            }
-            item.name = String.Join(" - ", headerValues);
-            return item;
-        }
-
-        private static List<string> PopulateItemWithObjectValues(MondayItem item, object obj)
-        {
-            List<string> headerValues = new List<string>();
-            foreach (var propInfo in obj.GetType().GetProperties())
-            {
-                var itemColAttribute = propInfo.GetCustomAttribute<MondayItemColumnAttribute>();
-                if (itemColAttribute != null)
-                {
-                    var columnValue = new MondayColumnValue(itemColAttribute, propInfo.GetValue(obj));
-                    item.column_values.Add(columnValue);
-
-                    //HACK: fix this garbage
-                    if(columnValue.id == "date44") {
-                        var col = new MondayItemColumnAttribute("date_17", false);
-                        var colVal = new MondayColumnValue(col, columnValue.value);
-                        item.column_values.Add(colVal);
-                    } else if (columnValue.id == "date6") {
-                        var col = new MondayItemColumnAttribute("date5", false);
-                        var colVal = new MondayColumnValue(col, columnValue.value);
-                        item.column_values.Add(colVal);
-                    }
-                }
-                var itemHeaderAttribute = propInfo.GetCustomAttribute<MondayHeaderAttribute>();
-                if (itemHeaderAttribute != null)
-                {
-                    var headerValue = propInfo.GetValue(obj).ToString();
-                    headerValues.Add(headerValue);
-                }
-            }
-            return headerValues;
         }
 
         public async Task<MondayItem> UpdateMondayItem(MondayItem oldItem, MondayItem newItem, MondayUpdateItemParameters reqParams = null, MondayItemBodyOptions options = null)
@@ -105,7 +49,7 @@ namespace monday_integration.src.monday
             return response.create_item;
         }
 
-        public async Task<MondayBoard> GetMondayBoard(int boardId) {
+        public async Task<MondayBoard> GetMondayBoard(long boardId) {
             var paramOptions = new MondayBoardParameterOptions(new MondayBoard(){id = boardId});
 
             var columnValueOptions = new MondayColumnValueBodyOptions(){id=true, value=true, text=true};

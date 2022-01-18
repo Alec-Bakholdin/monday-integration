@@ -1,16 +1,16 @@
 using System;
+using System.Threading;
 
 namespace monday_integration.src.monday
 {
     public static class MondayApiFactory
     {
         private static MondayApi _api;
+        private static int num_users = 0;
 
         public static void InitializeApi(string BaseUrl, string ApiToken) {
-            if(_api != null) {
-                throw new InvalidOperationException("Api was already initialized, please close the API before initializing");
-            }
-            _api = new MondayApi(BaseUrl, ApiToken);
+            Interlocked.Increment(ref num_users);
+            _api = _api ?? new MondayApi(BaseUrl, ApiToken);
         }
 
         public static MondayApi GetApi() {
@@ -21,10 +21,9 @@ namespace monday_integration.src.monday
         }
 
         public static void CloseApi() {
-            if(_api == null) {
-                throw new InvalidOperationException("Cannot close API because it is not initialized");
+            if(Interlocked.Decrement(ref num_users) == 0) {
+                _api = null;
             }
-            _api = null;
         }
     }
 }

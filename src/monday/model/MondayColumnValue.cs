@@ -25,22 +25,26 @@ namespace monday_integration.src.monday.model
 
         }
 
-        public MondayColumnValue(MondayItemColumnAttribute columnAttribute, object obj) {
+        public MondayColumnValue(MondayItemColumnAttribute columnAttribute, object propertyValue) {
             this.id = columnAttribute.columnId;
-            this.value = columnAttribute.GetStringValue(obj);
-            this.text = columnAttribute.GetStringText(obj);
+            this.value = columnAttribute.GetStringValue(propertyValue);
+            this.text = columnAttribute.GetStringText(propertyValue);
             this.columnAttribute = columnAttribute;
         }
 
         public bool needsUpdating(MondayColumnValue colVal) {
-            // dropdown values are unique in that they're case-insensitive in the Monday.com api, so
-            // Consequence == CONSEQUENCE.
-            if(colVal.id.StartsWith("dropdown") && this.text.Trim().ToUpper() == colVal.text.Trim().ToUpper())
-                return false;
             if(columnAttribute != null && !columnAttribute.update) {
                 return false;
             }
-            return colVal.text.Trim() != this.text.Trim();
+            
+            var thisText = this.text?.Trim() ?? "";
+            var otherText = colVal.text?.Trim() ?? "";
+            // dropdown values are unique in that they're case-insensitive in the Monday.com api, so
+            // Consequence == CONSEQUENCE.
+            if(colVal.id.StartsWith("dropdown") && thisText.ToUpper() == otherText.ToUpper())
+                return false;
+
+            return thisText != otherText;
         }
 
         public override string ToString()

@@ -9,7 +9,7 @@ using RateLimiter;
 
 namespace monday_integration.src.aqua {
     public class AquaClient {
-        private const uint MAX_FETCH_ITERATIONS = 25;
+        private const uint MAX_FETCH_ITERATIONS = 50;
         private static AimsLogger logger = AimsLoggerFactory.CreateLogger(typeof(AquaClient));
 
         private AimsApi api;

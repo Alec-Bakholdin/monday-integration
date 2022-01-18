@@ -13,12 +13,13 @@ namespace monday_integration.src.functions
     public static class MondayHttpTrigger
     {
         [FunctionName("MondayHttpTrigger")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
+        public static IActionResult Run(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
+            [Queue("monday-queue")] ICollector<string> queueMessage,
             ILogger log)
         {
-            await Main.SyncMonday(log);
-            return new OkObjectResult("");
+            queueMessage.Add("string");
+            return new OkObjectResult("Successful");
         }
     }
 }

@@ -23,7 +23,7 @@ namespace withered_tree_monday_integration.src
         public async Task<MainDataFetcher> FetchAllInParallel() {
             var vendorPoClient = new AquaClient(settings.AimsStylePOsLineDetailsAndFieldsJobId);
             var allocationDetailsClient = new AquaClient(settings.AimsAllocationDetailsReportJobId);
-            var mondayClient = new MondayClient();
+            var mondayClient = new MondayApiClient();
 
             var tasks = new Task[]{
                 fetchAqua<WitreStyleVendorPO>(vendorPoClient),
@@ -40,7 +40,6 @@ namespace withered_tree_monday_integration.src
         }
 
         private async Task<List<T>> fetchAqua<T>(AquaClient aquaClient){
-            //TODO: uncomment
             await aquaClient.RerunBackgroundJob();
             return await aquaClient.FetchData<T>();
         }
