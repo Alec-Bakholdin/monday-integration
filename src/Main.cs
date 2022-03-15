@@ -36,8 +36,7 @@ namespace monday_integration.src
 
             Dictionary<string, List<WitreAllocationDetails>> allocationReportGroupedByVendorPO = GroupAllocationDetails(mainData);
             AddAllocationDetailsToVendorPOs(mainData, allocationReportGroupedByVendorPO);
-            List<MondayItem> mondayItems = ConvertVendorPOsToMondayItems(mainData);
-            await CreateAndUpdateMondayItems(mainData, mondayItems);
+            await CreateMondayItems(mainData);
         }
 
         private static async Task CreateAndUpdateMondayItems(MainDataFetcher mainData, List<MondayItem> mondayItems)
@@ -60,14 +59,15 @@ namespace monday_integration.src
             }
         }
 
-        private static List<MondayItem> ConvertVendorPOsToMondayItems(MainDataFetcher mainData)
+        private static async Task CreateMondayItems(MainDataFetcher mainData)
         {
             logger.Info("Converting vendor POs to monday items");
-            var mondayItems = mainData.vendorPOs
-                                .Select(po => po.ConvertToMondayItems(mainData.aimsIntegrationBoard))
-                                .SelectMany(po => po) // flattens the list of lists created in the previous line
-                                .ToList();
-            return mondayItems;
+            foreach(var vendorPo in mainData.vendorPOs) {
+                if(vendorPo.allocationDetails.Count == 0) continue;
+                var convertedItems = vendorPo.ConvertToMondayItems(mainData.aimsIntegrationBoard);
+                logger.Info($"Converted {convertedItems.Count()} POs to MondayItems");
+                await CreateAndUpdateMondayItems(mainData, convertedItems);
+            }
         }
 
         private static void AddAllocationDetailsToVendorPOs(MainDataFetcher mainData, Dictionary<string, List<WitreAllocationDetails>> allocationReportGroupedByVendorPO)

@@ -27,14 +27,34 @@ namespace monday_integration.src.aqua.model
         [MondayItemColumnAttribute("numbers1")] public double Price {get; set;}
         [MondayItemColumnAttribute("numbers8")] public int OrderQty {get; set;}
 
-        public string StyleColorID {get; set;}
-        [MondayItemColumnAttribute("text5")]    public AimsApiLookup fabricContent  {get {return new AimsApiLookup(StyleColorID, LookupType.FABRIC_CONTENT);}}
-        [MondayItemColumnAttribute("dropdown2")]public AimsApiLookup brandName      {get {return new AimsApiLookup(StyleColorID, LookupType.BRAND_NAME);}}
-        [MondayItemColumnAttribute("dropdown0")]public AimsApiLookup body           {get {return new AimsApiLookup(StyleColorID, LookupType.BODY);}}
-        [MondayItemColumnAttribute("dropdown9")]public AimsApiLookup originCountry  {get {return new AimsApiLookup(StyleColorID, LookupType.ORIGIN_COUNTRY);}}
-        [MondayItemColumnAttribute("text23")]   public AimsApiLookup sizeScale      {get {return new AimsApiLookup(StyleColorID, LookupType.SIZE_SCALE);}}
-        public string Warehouse {get; set;}
-        [MondayItemColumnAttribute("dropdown1")]public AimsApiLookup warehouseState {get {return new AimsApiLookup(Warehouse, LookupType.WAREHOUSE_STATE);}}
+        public string StyleColorID {get{return _styleColorID;} set {
+            _styleColorID = value;
+            lookupFabricContent = new AimsApiLookup(StyleColorID, LookupType.FABRIC_CONTENT);
+            lookupBrandName = new AimsApiLookup(StyleColorID, LookupType.BRAND_NAME);
+            lookupBody = new AimsApiLookup(StyleColorID, LookupType.BODY);
+            lookupOriginCountry = new AimsApiLookup(StyleColorID, LookupType.ORIGIN_COUNTRY);
+            lookupSizeScale = new AimsApiLookup(StyleColorID, LookupType.SIZE_SCALE);
+        }}
+        private string _styleColorID;
+        [MondayItemColumnAttribute("text5")]    public String FabricContent {get{return lookupFabricContent.ToString();}}
+        [MondayItemColumnAttribute("dropdown2")]public String BrandName     {get{return lookupBrandName.ToString();}}
+        [MondayItemColumnAttribute("dropdown0")]public String Body          {get{return lookupBody.ToString();}}
+        [MondayItemColumnAttribute("dropdown9")]public String OriginCountry {get{return lookupOriginCountry.ToString();}}
+        [MondayItemColumnAttribute("text23")]   public String SizeScale     {get{return lookupSizeScale.ToString();}}
+        private AimsApiLookup lookupFabricContent;
+        private AimsApiLookup lookupBrandName;
+        private AimsApiLookup lookupBody;
+        private AimsApiLookup lookupOriginCountry;
+        private AimsApiLookup lookupSizeScale;
+
+        public string Warehouse {set {
+            _warehouse = value;
+            lookupWarehouseState = new AimsApiLookup(value, LookupType.WAREHOUSE_STATE);
+            }}
+        private string _warehouse;
+
+        [MondayItemColumnAttribute("dropdown1")] public string warehouseState {get{return lookupWarehouseState.ToString();}}
+        private AimsApiLookup lookupWarehouseState;
 
         public List<WitreAllocationDetails> allocationDetails {
             get {
@@ -53,10 +73,14 @@ namespace monday_integration.src.aqua.model
             var itemList = new List<MondayItem>();
             var stylePoColValues = GetObjectColumnValues(vendorPoColumnProps, this);
             foreach(var allocation in allocationDetails){
+                if(allocation.Style != Style || allocation.Color != Color) {
+                    continue;
+                }
                 var item = new MondayItem();
                 item.name = GetItemName(allocation);
                 var allocationColumnValues = GetObjectColumnValues(allocationDetailsColumnProps, allocation);
                 item.AddAllColumnValues(allocationColumnValues);
+                item.AddAllColumnValues(stylePoColValues);
                 item.board_id = targetBoard.id;
                 itemList.Add(item);
             }

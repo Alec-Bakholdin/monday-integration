@@ -18,18 +18,17 @@ namespace monday_integration.src.api
         private Dictionary<string, object> _cache;
 
         public AimsApi(string baseUrl, string bearerToken) {
-            this.logger = AimsLoggerFactory.CreateLogger(typeof(AimsApi));
-            this._restClient = new RestClient(baseUrl);
-            this._restClient.AddHandler("text/csv", () => { return new CsvDeserializer();});
-            this._restClient.AddDefaultHeader("Authorization", bearerToken);
-            this._timeLimiter = TimeLimiter.GetFromMaxCountByInterval(1, TimeSpan.FromSeconds(1));
-            this._cacheLock = new SemaphoreSlim(1, 1);
-            this._cache = new Dictionary<string, object>();
+            InitializeApi(baseUrl, bearerToken, 1);
         }
         
         public AimsApi(string baseUrl, string bearerToken, int requestsPerSecond) {
+            InitializeApi(baseUrl, bearerToken, requestsPerSecond);
+        }
+
+        private void InitializeApi(String baseUrl, String bearerToken, int requestsPerSecond) {
             this.logger = AimsLoggerFactory.CreateLogger(typeof(AimsApi));
             this._restClient = new RestClient(baseUrl);
+            this._restClient.AddHandler("text/csv", () => { return new CsvDeserializer();});
             this._restClient.AddDefaultHeader("Authorization", bearerToken);
             this._timeLimiter = TimeLimiter.GetFromMaxCountByInterval(requestsPerSecond, TimeSpan.FromSeconds(1));
             this._cacheLock = new SemaphoreSlim(1, 1);

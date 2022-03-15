@@ -10,7 +10,7 @@ namespace monday_integration.src.api
 
         public static void InitializeApi(string BaseUrl, string BearerToken) {
             Interlocked.Increment(ref num_users);
-            _api = _api ?? new AimsApi(BaseUrl, BearerToken);
+            _api = _api ?? new AimsApi(BaseUrl, BearerToken, 5);
         }
 
         public static AimsApi GetApi() {
